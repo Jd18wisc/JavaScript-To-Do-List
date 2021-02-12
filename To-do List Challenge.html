@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Launch Coding To-Do List Challenge</title>
+</head>
+
+<body>
+    <script type="text/javascript">
+        /*
+        *   All output was routed to a browser window and HTML
+        *
+        *   Notes on the front-end design:
+        *       Layout - Basic layout two sections
+        *                   1.  At the top a user can create a new to-do item by:
+        *                       - Entering its title and description
+        *                       - Marking the item as high priority if needed
+        *                       - Hitting a create button to add the item to the top of the list
+        *                         or choosing a location in the list to add the new item
+        *                   2.  Below the add-item section the list is displayed in blocks:
+        *                       - Each block is a to do item
+        *                       - Each to-do item block has the following options/buttons on it
+        *                           - Edit      (which would then pop up with a display version of the
+        *                                        to select what trait to edit)
+        *                           - Priority  (button that is filled in as to mark as high priority
+        *                                        and that can be deselected)
+        *                           - Status    (the block would have a space or button with its status
+        *                                        showing that can be clicked or selected to change it)
+        *                           - Up/down   (two small boxes with arrows can be used to move the
+        *                                        item up or down the list 1 position)
+        *                           - Select    (there would be the ability to select and deselect
+        *                                        individual to-do items and choose new places in the
+        *                                        the list to place an item using it)
+        *       Priority - Items marked high priority are always displayed first
+        *       Testing - please find all test cases and the runTest() function after the to-do list functions
+        */
+
+        let list = new Array(); // the list of to-do items
+
+        /**
+        * Function that creates a new to-do item with user-specified values, fills in any remaining,
+        * and adds it to its proper place in the list
+        * 
+        * @author   Jacob Donovan
+        * @param    {String}    newTitle    the name of the to-do item
+        * @param    {String}    newText     the text description of the item
+        * @param    {Boolean}   priority    whether the item is (true) high priority or not (false)
+        * @param    {String}    newDueDate  the date the item is due
+        */
+        function newListItem(newTitle, newText, priority, newDueDate) {
+            let toDoItem = new Object();
+            toDoItem.title = newTitle; // sets item title
+            toDoItem.text = newText; // sets item description
+            toDoItem.highPriority = priority; // sets the priority of the item
+            let today = new Date();
+            toDoItem.startDate = '' + today.getDate() + '/' + today.getMonth() + '/' + today.getFullYear(); // saves the date and time it was entered
+            toDoItem.dueDate = newDueDate; // sets the due date for the item
+            toDoItem.status = 0; // sets status to 0 since it is new 0 (1), 1 (In progress), 2(Done and delete item)
+            toDoItem.index = placeItem(toDoItem); // sets the item's index as the return value for placeItem()
+        }
+
+        /**
+        * Function that creates a new to-do item with user-specified values, fills in any remaining,
+        * and adds it to a user-specified place in the list
+        * 
+        * @author   Jacob Donovan
+        * @param    {String}  newTitle    the name of the to-do item
+        * @param    {String}  newText     the text description of the item
+        * @param    {Boolean} priority    whether the item is (true) high priority or not (false)
+        * @param    {Integer} newIndex    the index that the user wants the item placed
+        * @param    {String}  newDueDate  the date the item is due
+        */
+        function newListItemWithIndex(newTitle, newText, priority, newIndex, newDateDue) {
+            let toDoItem = new Object();
+            toDoItem.title = newTitle;
+            toDoItem.text = newText;
+            toDoItem.highPriority = priority;
+            toDoItem.index = newIndex; // sets the index to the user specified index
+            let today = new Date();
+            toDoItem.startDate = '' + today.getDate() + '/' + today.getMonth() + '/' + today.getFullYear();
+            toDoItem.dueDate = newDateDue;
+            toDoItem.status = 0;
+            // will override user placement to insert it at the top if it is high priority
+            if (toDoItem.highPriority != true) {
+                // finds the next place after the high priority items to add the new item
+                for (let i = 0; i < list.length; i++) {
+                    if (list[i].highPriority == false) {
+                        if (newIndex <= list[i].index) {
+                            newIndex = i;
+                            break;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                list.splice(newIndex, 0, toDoItem); // splices the to do item into the list at the correct index
+                correctIndex(newIndex);
+            } else {
+                placeItem(toDoItem); // if the item is high priority the placeItem() function will place it at the top
+            }
+        }
+
+        /**
+        * Changes the priority of an item and moves it to the top of the list
+        * 
+        * @author   Jacob Donovan
+        * @param    {Integer}   itemIndex       the index of the item to be moved
+        * @param    {Boolean}   newPriority     the new value for priority
+        */
+        function changePriority(itemIndex, newPriority) {
+            if (list[itemIndex].highPriority == newPriority) {
+                return;
+            }
+            // set the new priority value
+            if (newPriority == true) { // if the new priority is high move the item to the top
+                list[itemIndex].highPriority = newPriority;
+                moveToTop(itemIndex);
+            } else if (newPriority == false) {
+                // moves the item from high priority back down to the regular section of the list
+                for (let i = 0; i < list.length; i++) {
+                    // if at the end of the list or a space is found
+                    if (list[i].highPriority == false) {
+                        list[itemIndex].highPriority = newPriority;
+                        moveTo(itemIndex, i);
+                        break;
+                    }
+                }
+            }
+        }
+
+        /**
+        * Updates the status of a to-do item based on user selection
+        * 
+        * @author   Jacob Donovan
+        * @param    {Integer}   index       the location of the item to be changed
+        * @param    {String}    newStatus   the new status for the item
+        */
+        function changeStatus(index, newStatus) {
+            list[index].status = newStatus; // update the list item status
+            // if the status is 2 (complete) add the item to the completed list
+            if (newStatus == 2) {
+                list.splice(index, 1); // remove the completed item from the current list
+                correctIndex(); // correct any changes in the index references stored in the objects
+            }
+        }
+
+        /**
+        * Updates the due date of a to-do item based on user selection
+        * 
+        * @author   Jacob Donovan
+        * @param    {Integer}   index       the location of the item to be changed
+        * @param    {String}    newDueDate  the new due date
+        */
+        function changeDueDate(index, newDueDate) {
+            list[index].dueDate = newDueDate;
+        }
+
+        /**
+        * Changes the title of the item
+        * 
+        * @author   Jacob Donovan
+        * @param    {Integer}   itemIndex       the index of the item to be moved
+        * @param    {String}    newTitle        the new title for the item
+        */
+        function changeTitle(itemIndex, newTitle) {
+            list[itemIndex].title = newTitle;
+        }
+
+        /**
+        * Changes the title of the item
+        * 
+        * @author   Jacob Donovan
+        * @param    {Integer}   itemIndex       the index of the item to be moved
+        * @param    {String}    newText         the new text for the item
+        */
+        function changeText(itemIndex, newText) {
+            list[itemIndex].text = newText;
+        }
+
+        /**
+        * Function that is run after any alteration is made to the to-do list so
+        * the index references of items update to their new values if needed
+        * 
+        * @author   Jacob Donovan
+        */
+        function correctIndex() {
+            // if the item is not empty or only 1 item, correct the indexes
+            if (list.length != 0 || list.length != 1) {
+                // write the old index values over with the new list position
+                for (let i = 0; i < list.length; i++) {
+                    list[i].index = i;
+                }
+            }
+        }
+
+        /**
+        * This function correctly places the toDoItem argument into the list in the
+        * correct location
+        * 
+        * @author   Jacob Donovan
+        * @param    {Object}    toDoItem    the toDoItem to be placed in the list
+        * @returns  {Integer}               the index where the item was placed
+        */
+        // *works* - checked 2:26 on 2/4
+        function placeItem(toDoItem) {
+            // if the item is marked high priority or the list is 0
+            if (toDoItem.highPriority == true || list.length == 0) {
+                list.unshift(toDoItem); // item is placed at the front of the array
+                correctIndex(0); // correctIndex() is run to update item index values
+                return 0; // return index 0 because it is at the front of the list
+            }
+            let i = 0;
+            // if the item is not high priority loop until the first regular item's index is found
+            while (list[i].highPriority != false) {
+                i++;
+                // if no regular items are found and the end of the array is reached break the loop
+                if (i == list.length) {
+                    break;
+                }
+            }
+            list.splice(i, 0, toDoItem); // add the item to the position found by the loop
+            correctIndex(i); // update any item indexes that changed
+            return i; // return the item's index so it can be stored in the object
+        }
+
+        /**
+        * Deletes a specified element from the list
+        * 
+        * @author   Jacob Donovan
+        * @param    {Integer}   index    the index of the object to be deleted
+        * @returns  {Boolean}            true to confirm the item was delete
+        */
+        function deleteItem(index) {
+            list.splice(index, 1); // deletes the item at the index
+            correctIndex(); // update any item indexes that changed
+            return true;
+        }
+
+        /**
+        * Based on the arrow option for users to move an item up or down 1 space using arrows
+        * on the to-do item front end blocks
+        * 
+        * @author   Jacob Donovan
+        * @param    {Integer}   index        the index of the item to be moved
+        * @param    {Integer}   upOrDown     0 for up the list and 1 for down
+        * @returns  {Boolean}                true when the item is moved and false otherwise
+        */
+        function moveOne(index, upOrDown) {
+            let toDoItem = list[index]; // the item to be moved in a temporary object
+            // if the user tries to move an item up from the top position or down from the bottom
+            if ((index == 0 && upOrDown == 0) || (index == (list.length - 1) && upOrDown == 1)) {
+                return false;
+            }
+            // switch to run the case for either 0 (up) or 1 (down)
+            switch (upOrDown) {
+                case 0: // item at index swaps position with the item one up in the list
+                    list[index] = list[index - 1];
+                    list[index].index = index;
+                    list[index - 1] = toDoItem;
+                    list[index - 1].index = index - 1;
+                    break;
+                case 1: // item at index swaps position with the item one down in the list
+                    list[index] = list[index + 1];
+                    list[index].index = index;
+                    list[index + 1] = toDoItem;
+                    list[index + 1].index = index + 1;
+                    break;
+                default:
+                    return false;
+            }
+            return true;
+        }
+
+        /**
+        * Moves an item to another spot in the list. Would be used when the user selects
+        * the to-do item in the front end and selections a new position for it
+        * 
+        * @author   Jacob Donovan
+        * @param    {Integer}   itemIndex       the index of the item to be moved
+        * @param    {Boolean}   moveToIndex     the index where the item is being moved
+        */
+        function moveTo(itemIndex, moveToIndex) {
+            let place; // the index where the regular priority items are
+            // if the provided moveToIndex is the same as the length then add it to the bottom of the list
+            if (moveToIndex == list.length) {
+                moveToBottom(itemIndex);
+                return;
+            }
+            // sets the index for place by finding where the high priority items end
+            for (let i = 0; i < list.length; i++) {
+                if (list[i].highPriority == false) {
+                    place = i;
+                    break;
+                }
+            }
+            if (list[itemIndex].highPriority == false) { // if the item to be moved is not high priority
+                if (moveToIndex < place) { // if the user tries to move the item to the high priority section
+                    moveToIndex = place; // set the moveToIndex the top of the regular items list
+                }
+            } else { // for high priority items
+                if (moveToIndex >= place) { // if the user tries to move an item below the high priority section
+                    moveToIndex = place; // set the moveToIndex it as the last item in the high priority section
+                }
+            }
+
+            let temp = list[itemIndex];
+            list.splice(moveToIndex, 0, list[itemIndex]); // move the selected item to the space in list
+            // the index of the original item to delete may change so this handles that problem
+            if (list[itemIndex].title == temp.title && list[itemIndex].text == temp.text) {
+                list.splice(itemIndex, 1); // if still at the original index
+            } else if (list[itemIndex + 1].title == temp.title && list[itemIndex + 1].text == temp.text) {
+                list.splice(itemIndex + 1, 1); // if at an index 1 greater than the original
+            } else if (list[itemIndex - 1].title == temp.title && list[itemIndex - 1].text == temp.text) {
+                list.splice(itemIndex - 1, 1); // if at an index 1 less than the original
+            }
+            list[moveToIndex].index = moveToIndex; // set the new index
+            correctIndex(); // fixes any object index values
+        }
+
+        /**
+        * Moves an item to the front of the list
+        * 
+        * @author   Jacob Donovan
+        * @param    {Integer}   itemIndex       the index of the item to be moved
+        */
+        function moveToTop(itemIndex) {
+            let toDoItem = list[itemIndex]; // copy of the item being moved
+            list.splice(itemIndex, 1); // delete the item at its spot in the list
+            // if the to-do item is high priority move it to the top of the list
+            if (toDoItem.highPriority == true) {
+                list.unshift(toDoItem);
+                correctIndex();
+            } else {
+                // loop until the first regular space is found in the list and insert it there
+                for (let i = 0; i < list.length; i++) {
+                    if (list[i].highPriority == false) {
+                        list.splice(i, 0, toDoItem);
+                        list[i].index = i; // updates the objects index
+                        correctIndex();
+                        break;
+                    }
+                }
+            }
+        }
+
+        /**
+        * Moves an item to the bottom of the list
+        * 
+        * @author   Jacob Donovan
+        * @param    {Integer}   itemIndex       the index of the item to be moved
+        */
+        function moveToBottom(itemIndex) {
+            // if the list item is high priority move it to the bottom of the high priority section
+            if (list[itemIndex].highPriority == true) {
+                for (let i = 0; i < list.length; i++) {
+                    if (list[i].highPriority == false) {
+                        list.splice(i, 0, list[itemIndex]);
+                        list.splice(itemIndex, 1);
+                        correctIndex();
+                        return;
+                    }
+                }
+            }
+            list[list.length] = list[itemIndex]; // sets the to-do item to the end of the list
+            list.splice(itemIndex, 1); // deletes the item at the old index
+            correctIndex(); // corrects any changes in the indexes
+        }
+
+        /**
+        * Used during testing to check program outpus in the browser window. Prints
+        * all list items and their details in a vertical list
+        * 
+        * @author   Jacob Donovan
+        */
+        function printList() {
+            for (let i = 0; i < list.length; i++) { // loop through all items
+                document.write('<br><div>' + (list[i].index + 1) + '. ' + list[i].title); // get index number (plus 1 so the list does not start at 0)
+                if (list[i].highPriority == true) { // if the list is high priority
+                    document.write('    (h): '); // add an h to signify it is marked as high priority
+                }
+                document.write('-----' + list[i].text + ' (' + list[i].startDate + ' - ' + list[i].dueDate + ') [');
+                switch (list[i].status) { // check the value of status and write the appropriate message
+                    case 0:
+                        document.write('New');
+                        break;
+                    case 1:
+                        document.write("In progress");
+                        break;
+                    case 2:
+                        document.write("Completed");
+                }
+                document.write(']</div>');
+            }
+        }
+
+        /**
+        * Tests creating a new item, adding it to the list, and that it is added to the correct
+        * index in the list
+        * 
+        * @author   Jacob Donovan
+        * @returns  {Boolean}       true if all tests pass and false otherwise
+        */
+        function testCreateAddPlace() {
+            list = new Array();
+            
+            // case 1: makes sure an item is created correctly and added to the list
+            newListItem('Item 1', 'text', false, '2/6/21');
+            if (list[0].title != 'Item 1' || list[0].text != 'text' || list[0].dueDate != '2/6/21') {
+                return false;
+            }
+            // case 2: second item added to the list correctly
+            newListItem('Item 2', 'text', false, '2/7/21');
+            if (list[0].title != 'Item 2' && list[1].title != 'Item 1') {
+                return false;
+            }
+
+            // case 3: a list with mutliple items creates and adds them correctly
+            newListItem('Item 3', 'text', false, '2/8/21');
+            newListItem('Item 4', 'text', false, '2/9/21');
+            if (list[0].title != 'Item 4') {
+                return false;
+            } else if (list[1].title != 'Item 3') {
+                return false;
+            } else if (list[3].title != 'Item 1') {
+                return false;
+            }
+
+            // case 4: items with high priority are added correctly
+            newListItem('Item 5', 'text', true, '2/10/21');
+            newListItem('Item 6', 'text', true, '2/11/21');
+            if (list[0].title != 'Item 6' && list[1].title != 'Item 5') {
+                return false;
+            }
+
+            return true;
+        }
+
+        /**
+        * Tests creating a new item, adding it to the list, and that it is added to the correct
+        * index in the list when the user provides an index for insertion
+        * 
+        * @author   Jacob Donovan
+        * @returns  {Boolean}       true if all tests pass and false otherwise
+        */
+        function testCreateAddPlaceWithIndex() {
+            list = new Array();
+            
+            // case 1: an item with a specified index is added to the correct position in the list
+            newListItem('Item 1', 'text', false, '2/6/21');
+            newListItem('Item 2', 'text', false, '2/7/21');
+            newListItem('Item 3', 'text', false, '2/8/21');
+            newListItem('Item 4', 'text', false, '2/8/21');
+            newListItem('Item 5', 'text', true, '2/9/21');
+            newListItem('Item 6', 'text', true, '2/9/21');
+            newListItemWithIndex('Item 7', 'text', false, 4, '2/9/21');
+            if (list[4].title != 'Item 7') {
+                return false;
+            }
+
+            // case 2: an item not high priority is attempted to be added to the priority section
+            newListItemWithIndex('Item 8', 'text', false, 0, '2/9/21');
+            if (list[2].title != 'Item 8') { // the program moves the item to the next highest available spot
+                return false;
+            }
+
+            // case 3: an item is added to the end of the list
+            newListItemWithIndex('Item 9', 'text', false, list.length, '2/9/21');
+            if (list[8].title != 'Item 9') {
+                return false;
+            }
+
+            // case 4: a true item is added with an index in the regular section
+            newListItem('Item 10', 'text', true, '2/9/21', 4);
+            if (list[0].title != 'Item 10') { // program moves this item to the bottom of the high priority section
+                return false;
+            }
+
+            return true;
+        }
+
+        /**
+        * Tests deleting an item from the list and that all parts of the list adjust to the
+        * change appropriately
+        * 
+        * @author   Jacob Donovan
+        * @returns  {Boolean}       true if all tests pass and false otherwise
+        */
+        function testDeleteItem() {
+            list = new Array();
+
+            // case 1: an item is deleted from the list
+            newListItem('Item 1', 'text', false, '2/6/21');
+            newListItem('Item 2', 'text', false, '2/7/21');
+            newListItem('Item 3', 'text', false, '2/8/21');
+            newListItem('Item 4', 'text', false, '2/8/21');
+            newListItem('Item 5', 'text', true, '2/9/21');
+            newListItem('Item 6', 'text', true, '2/9/21');
+            deleteItem(2);
+            if (list[2].title != 'Item 3' && list[2].index != '2' && list.length != 5) {
+                return false;
+            }
+
+            // case 2: a high priority item is deleted
+            deleteItem(0);
+            if (list[0].title != 'Item 5') {
+                return false;
+            }
+
+            // case 3: an item is deleted from the end of the list
+            deleteItem(list.length - 1);
+            if (list[list.length - 1].title != 'Item 2') {
+                return false;
+            }
+
+            return true;
+        }
+
+        /**
+        * Tests all move functions to make sure items move to their correct position
+        * and that the other items update accordingly
+        * 
+        * @author   Jacob Donovan
+        * @returns  {Boolean}       true if all tests pass and false otherwise
+        */
+        function testMoveFunctions() {
+            list = new Array();
+
+            // case 1: an item is moved up 1
+            newListItem('Item 1', 'text', false, '2/6/21');
+            newListItem('Item 2', 'text', false, '2/7/21');
+            newListItem('Item 3', 'text', false, '2/8/21');
+            newListItem('Item 4', 'text', false, '2/8/21');
+            newListItem('Item 5', 'text', true, '2/9/21');
+            newListItem('Item 6', 'text', true, '2/9/21');
+            moveOne(4, 0);
+            if (list[3].title != 'Item 2' || list[4].title != 'Item 3') {
+                return false;
+            }
+
+            // case 2: an item is moved down 1
+            moveOne(3, 1);
+            if (list[3].title != 'Item 3' || list[4].title != 'Item 2') {
+                return false;
+            }
+
+            // case 3: an item at the top of the list is attempted to be moved up 1
+            moveOne(0, 0);
+            if (list[0].title != 'Item 6') {
+                return false;
+            }
+
+            // case 4: an item at the bottom of the list is attempted to be moved down 1
+            moveOne(list.length - 1, 1);
+            if (list[0].title != 'Item 6') {
+                return false;
+            }
+
+            // case 5: an item is moved from one position to another
+            moveTo(4, 2);
+            if (list[2].title != 'Item 2' || list[3].title != 'Item 4' || list[4].title != 'Item 3') {
+                return false;
+            }
+
+            // case 6: an item that is not priority is attempted to be moved to a position in the priority section
+            moveTo(3, 0); // moveTo() will move it to the top of the regular priority item section
+            if (list[2].title != 'Item 4' || list[3].title != 'Item 2' || list[4].title != 'Item 3') {
+                return false;
+            }
+
+            // case 7: an item is moved to the end of the list
+            moveTo(2, list.length);
+            if (list[2].title != 'Item 2' || list[list.length - 1].title != 'Item 4') {
+                return false;
+            }
+
+            // case 8: a high priority item is attempted to be moved out of the high priority sectoin
+            moveTo(0, 4); // moveTo() will move this item to the bottom of the high priority section
+            if (list[1].title != 'Item 6') {
+                return false;
+            }
+
+            // case 9: a high priority item moved in the high priority section
+            moveTo(1, 0);
+            if (list[0].title != 'Item 6') {
+                return false;
+            }
+
+            // case 10: an item not high priority is tried to move to the top
+            moveToTop(4); // moveToTop() will skip the high priority section and move the item to the top of the regular item section
+            if (list[0].title != 'Item 6' || list[2].title != 'Item 1' || list[4].title != 'Item 3') {
+                return false;
+            }
+
+            // case 11: a high priority item is moved to the top
+            moveToTop(1);
+            if (list[0].title != 'Item 5') {
+                return false;
+            }
+
+            // case 12: an item is moved to the bottom of the list
+            moveToBottom(2);
+            if (list[list.length - 1].title != 'Item 1' || list[2].title != 'Item 2') {
+                return false;
+            }
+
+            // case 13: a high priority item is attempted to be moved to the bottom
+            moveToBottom(0); // moveToBottom() will place the item at the bottom of the high priority section
+            if (list[1].title != 'Item 5' || list[list.length - 1].title != 'Item 1') {
+                return false;
+            }
+            return true;
+        }
+
+        /**
+        * Tests that all data that can be edited can be successfully changed
+        * 
+        * @author   Jacob Donovan
+        * @returns  {Boolean}       true if all tests pass and false otherwise
+        */
+        function testChangeData() {
+            list = new Array();
+            newListItem('Item', 'text', false, '2/6/21');
+
+            // case 1: change the title
+            changeTitle(0, 'Item 1');
+            if (list[0].title != 'Item 1') {
+                return false;
+            }
+
+            // case 2: change the description
+            changeText(0, 'texts');
+            if (list[0].text != 'texts') {
+                return false;
+            }
+
+            // case 3: changes the priority and moves the item to the correct section of the list
+            newListItem('Item 2', 'text', true, '2/6/21');
+            newListItem('Item 3', 'text', false, '2/6/21');
+            newListItem('Item 4', 'text', false, '2/6/21');
+            changePriority(0, true); // tries to change an item priority that already has that priority status
+            if (list[0].highPriority != true || list[0].title != 'Item 2') {
+                return false;
+            }
+            changePriority(1, true); // changes a not high priority item to a priority item and moves it to the top of the high priority section
+            if (list[0].highPriority != true || list[0].title != 'Item 4' || list[1].highPriority != true || list[1].title != 'Item 2') {
+                return false;
+            }
+            changePriority(0, false); // changes a high priority item to a not high priority item and moves it to the top of the regular priority section
+            if (list[0].highPriority != true || list[0].title != 'Item 2' || list[1].highPriority != false || list[1].title != 'Item 4') {
+                return false;
+            }
+
+            // case 4: change the date
+            changeDueDate(0, '2/16/21');
+            if (list[0].dueDate != '2/16/21') {
+                return false;
+            }
+            return true;
+        }
+
+        function runTests() {
+            document.write('testCreateAddPlace():' + testCreateAddPlace() + '<br>');
+            document.write('testCreateAddPlaceWithIndex():' + testCreateAddPlaceWithIndex() + '<br>');
+            document.write('testDeleteItem():' + testDeleteItem() + '<br>');
+            document.write('testMoveFunctions():' + testMoveFunctions() + '<br>');
+            document.write('testChangeData():' + testChangeData() + '<br>');
+        }
+
+        runTests();
+    </script>
+</body>
+
+</html>
